@@ -1,0 +1,7 @@
+digraph G {
+  rankdir = "RL";
+  node [shape = rect, fontname = "sans-serif"];
+  "aws_instance.example" [label="aws_instance.example"];
+  "aws_security_group.instance" [label="aws_security_group.instance"];
+  "aws_instance.example" -> "aws_security_group.instance";
+}
