@@ -40,7 +40,8 @@ resource "aws_autoscaling_group" "example" {
     max_size = 10
     desired_capacity = 2
 
-    vpc_zone_identifier = ["subnet-0838f49bbd9a27b63"]
+    # vpc_zone_identifier = ["subnet-0838f49bbd9a27b63"]
+    vpc_zone_identifier = data.aws_subnets.default.ids
 
     tag {
         key = "Name"
@@ -58,5 +59,23 @@ resource "aws_security_group" "instance" {
         to_port = var.server_port
         protocol = "tcp"
         cidr_blocks = ["0.0.0.0/0"]
+    }
+}
+
+data "aws_vpc" "default" {
+    filter {
+        name = "tag:Name"
+        values = ["default-vpc"]
+    }
+}
+
+data "aws_subnets" "default" {
+    filter {
+      name = "vpc-id"
+      values = [data.aws_vpc.default.id]
+    }
+    filter {
+        name = "map-public-ip-on-launch"
+        values = ["true"]
     }
 }
