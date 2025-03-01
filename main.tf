@@ -2,45 +2,51 @@ provider "aws" {
   region = "ap-northeast-1"
 }
 
-# resource "aws_instance" "example" {
-#   ami = "ami-0a290015b99140cd1"
-#   instance_type = "t2.micro"
-#   vpc_security_group_ids = ["sg-0d521f12d384465dd"] 
-#   subnet_id = "subnet-0a14e2a0f2e4b5879"
-#   tags = {
-#     Name = "kenteru_testa"
-#   }
-# }
-
 variable "server_port" {
   description = "HTTPサーバポート"
   type = number
   default = 8080
 }
 
-output "public_ip" {
-    value = aws_instance.example.public_ip
-    description = "EC2のパブリックIPアドレス"
+resource "aws_launch_template" "example" {
+    name_prefix = "terraform-template-example"
+    image_id = "ami-0a290015b99140cd1"
+    instance_type = "t2.micro"
+
+    network_interfaces {
+        associate_public_ip_address = true 
+        security_groups = [aws_security_group.instance.id]
+    }
+
+    user_data = base64encode(<<-EOF
+                #!/bin/bash
+                echo "Hello, World4" > index.html
+                nohup busybox httpd -f -p ${var.server_port} &
+
+                # ログ出力
+                ps aux | grep busybox > /var/log/userdata.log
+                netstat -tulnp | grep LISTEN >> /var/log/userdata.log
+                EOF
+                )
 }
 
-resource "aws_instance" "example" {
-    ami = "ami-0a290015b99140cd1"
-    instance_type = "t2.micro"
-    vpc_security_group_ids = [aws_security_group.instance.id]
-    associate_public_ip_address = true
-
-    user_data = <<-EOF
-                #!/bin/bash
-                echo "Hello, World2" > index.html
-                nohup busybox httpd -f -p ${var.server_port} &
-                EOF
-
-    user_data_replace_on_change = true
-
-    tags = {
-        Name = "terraform-example"
+resource "aws_autoscaling_group" "example" {
+    launch_template {
+        id = aws_launch_template.example.id
+        version = "$Latest"
     }
-    subnet_id = "subnet-0838f49bbd9a27b63"
+
+    min_size = 2
+    max_size = 10
+    desired_capacity = 2
+
+    vpc_zone_identifier = ["subnet-0838f49bbd9a27b63"]
+
+    tag {
+        key = "Name"
+        value = "terrafrom-asg-example"
+        propagate_at_launch = true
+    }
 }
 
 resource "aws_security_group" "instance" {
